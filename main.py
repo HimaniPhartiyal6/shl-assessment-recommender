@@ -2,14 +2,22 @@
 from pydantic import BaseModel
 from typing import List
 import json
+import os
 
 app = FastAPI()
 
-# Load catalog
-with open('shl_catalog.json', 'r') as f:
-    assessments = json.load(f)
+# Debug: Print current directory and files
+print("Current directory:", os.getcwd())
+print("Files in directory:", os.listdir('.'))
 
-print(f"✅ Loaded {len(assessments)} assessments")
+# Load catalog
+try:
+    with open('shl_catalog.json', 'r') as f:
+        assessments = json.load(f)
+    print(f"Loaded {len(assessments)} assessments")
+except Exception as e:
+    assessments = []
+    print(f"Error loading catalog: {e}")
 
 class Message(BaseModel):
     role: str
@@ -46,6 +54,10 @@ def search_assessments(query, k=5):
 async def health():
     return {"status": "ok"}
 
+@app.get("/test")
+async def test():
+    return {"message": "Test endpoint works!", "files": os.listdir('.')}
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     user_msgs = [m for m in request.messages if m.role == "user"]
@@ -57,14 +69,6 @@ async def chat(request: ChatRequest):
         )
     
     query = user_msgs[-1].content
-    
-    off_topics = ['weather', 'stock', 'legal', 'resume', 'salary', 'interview tips']
-    if any(word in query.lower() for word in off_topics):
-        return ChatResponse(
-            reply="I can only recommend SHL assessments. Please tell me about the role you're hiring for.",
-            recommendations=[],
-            end_of_conversation=False
-        )
     
     if len(query) < 8 or query.lower() in ['hi', 'hello', 'help', 'hey']:
         return ChatResponse(
